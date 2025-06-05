@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plan de Table Interactif</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&display=swap');
+        
+        body {
+            font-family: 'Cormorant Garamond', serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            user-select: none;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 30px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #7a8471;
+            font-size: 2.5em;
+            font-weight: 300;
+            margin-bottom: 20px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        
+        .controls {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #7a8471;
+            font-size: 1.1em;
+        }
+        
+        .venue-layout {
+            position: relative;
+            width: 100%;
+            height: 900px;
+            background: linear-gradient(135deg, #fafcfa 0%, #f0f5f0 100%);
+            border-radius: 15px;
+            border: 2px solid #e8f5e8;
+            overflow: hidden;
+            cursor: grab;
+        }
+        
+        .venue-layout:active {
+            cursor: grabbing;
+        }
+        
+        .table {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: #7a8471;
+            cursor: move;
+            transition: box-shadow 0.3s ease;
+            border: 3px solid #7a8471;
+            box-shadow: 0 8px 25px rgba(122, 132, 113, 0.2);
+            z-index: 5;
+        }
+        
+        .table:hover {
+            box-shadow: 0 15px 35px rgba(122, 132, 113, 0.4);
+            z-index: 10;
+        }
+        
+        .table.dragging {
+            z-index: 20;
+            transform: scale(1.05);
+            box-shadow: 0 20px 40px rgba(122, 132, 113, 0.5);
+        }
+        
+        .table-round {
+            border-radius: 50%;
+            background: radial-gradient(circle, #ffffff 0%, #f8fdf8 100%);
+            width: 140px;
+            height: 140px;
+            font-size: 14px;
+        }
+        
+        .table-rectangular {
+            border-radius: 15px;
+            background: linear-gradient(135deg, #ffffff 0%, #f0f8f0 100%);
+            width: 200px;
+            height: 90px;
+            font-size: 16px;
+            border-color: #d4af37;
+            color: #d4af37;
+            font-weight: 700;
+        }
+        
+        .table-rectangular:hover {
+            box-shadow: 0 15px 35px rgba(212, 175, 55, 0.4);
+        }
+        
+        /* Positions initiales */
+        .table1 { top: 50px; left: 50%; transform: translateX(-50%); }
+        .table2 { top: 180px; left: 80px; }
+        .table3 { top: 180px; right: 80px; }
+        .table4 { top: 320px; left: 60px; }
+        .table5 { top: 320px; left: 280px; }
+        .table6 { top: 320px; right: 280px; }
+        .table7 { top: 320px; right: 60px; }
+        .table8 { top: 480px; left: 120px; }
+        .table9 { top: 480px; left: 50%; transform: translateX(-50%); }
+        .table10 { top: 480px; right: 120px; }
+        .table11 { top: 580px; left: 200px; }
+        .table12 { top: 580px; right: 200px; }
+        .table13 { top: 640px; left: 50%; transform: translateX(-50%); }
+        
+        .seat {
+            position: absolute;
+            width: 25px;
+            height: 25px;
+            background: #7a8471;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 2px solid white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
+        .seat:hover {
+            background: #5a6b4f;
+            transform: scale(1.2);
+            z-index: 15;
+        }
+        
+        .seat-rect {
+            background: #d4af37;
+        }
+        
+        .seat-kids {
+            background: #ff9800;
+        }
+        
+        .seat-kids:hover {
+            background: #ff6f00;
+        }
+        
+        .tooltip {
+            position: absolute;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 5px 8px;
+            border-radius: 5px;
+            font-size: 11px;
+            pointer-events: none;
+            z-index: 25;
+            transform: translate(-50%, -120%);
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        
+        .tooltip.show {
+            opacity: 1;
+        }
+        
+        .guests-panel {
+            position: fixed;
+            top: 0;
+            right: -450px;
+            width: 420px;
+            height: 100vh;
+            background: white;
+            box-shadow: -5px 0 20px rgba(0,0,0,0.1);
+            transition: right 0.3s ease;
+            z-index: 1000;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .guests-panel.active {
+            right: 0;
+        }
+        
+        .guests-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e8f5e8;
+        }
+        
+        .guests-title {
+            font-size: 1.5em;
+            color: #7a8471;
+            font-weight: 600;
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5em;
+            color: #7a8471;
+            cursor: pointer;
+            padding: 5px;
+        }
+        
+        .guest-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .guest-item {
+            padding: 12px 15px;
+            margin: 8px 0;
+            background: rgba(232, 245, 232, 0.4);
+            border-radius: 25px;
+            font-size: 1.1em;
+            color: #5a6b4f;
+            border-left: 3px solid #a8d5a8;
+            transition: all 0.2s ease;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 40px;
+        }
+        
+        .guest-item:hover {
+            background: rgba(168, 213, 168, 0.6);
+            transform: translateX(5px);
+        }
+        
+        .guest-item .guest-name {
+            flex: 1;
+            display: flex;
+            align-items: center;
+        }
+        
+        .guest-item .guest-number {
+            display: inline-block;
+            min-width: 25px;
+            text-align: left;
+            margin-right: 8px;
+        }
+        
+        .guest-item.selected {
+            background: rgba(122, 132, 113, 0.3);
+            border-left-color: #7a8471;
+            transform: translateX(5px);
+        }
+        
+        .guest-controls {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+        
+        .move-btn {
+            background: #7a8471;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+        
+        .move-btn:hover {
+            background: #5a6b4f;
+            transform: scale(1.1);
+        }
+        
+        .move-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .reorder-info {
+            text-align: center;
+            padding: 10px;
+            background: rgba(122, 132, 113, 0.1);
+            border-radius: 10px;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+            color: #7a8471;
+        }
+        
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #e8f5e8;
+            font-size: 0.9em;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            color: #5a6b4f;
+        }
+        
+        .legend-icon {
+            width: 20px;
+            height: 20px;
+            margin-right: 8px;
+            border: 2px solid;
+        }
+        
+        .legend-round {
+            border-radius: 50%;
+            border-color: #7a8471;
+            background: #f8fdf8;
+        }
+        
+        .legend-rect {
+            border-radius: 3px;
+            border-color: #d4af37;
+            background: #f0f8f0;
+        }
+        
+        .seat-visualization {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(248, 253, 248, 0.5);
+            border-radius: 10px;
+            border: 1px solid #e8f5e8;
+        }
+        
+        .seat-diagram {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            margin: 20px auto;
+        }
+        
+        .seat-diagram-rect {
+            width: 250px;
+            height: 120px;
+        }
+        
+        @media (max-width: 1200px) {
+            .table-round {
+                width: 120px;
+                height: 120px;
+                font-size: 12px;
+            }
+            
+            .table-rectangular {
+                width: 160px;
+                height: 75px;
+                font-size: 14px;
+            }
+            
+            .guests-panel {
+                width: 350px;
+                right: -370px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Plan de Table Interactif</h1>
+        <div class="controls">
+            🖱️ Glissez-déposez les tables pour les repositionner | 👆 Cliquez sur une table pour voir les invités | 🪑 Survolez les places pour voir qui est assis où
+            | 💾 <button id="saveBtn">Enregistrer</button> | 🖨️ <button id="printBtn">Imprimer</button>
+        </div>
+        
+        <div class="venue-layout" id="venueLayout">
+            <!-- Table d'honneur rectangulaire -->
+            <div class="table table-rectangular table1" data-table="1" onclick="showGuests('Table 1 - Table d\'Honneur', tableData[1])">
+                TABLE 1<br>Honneur
+            </div>
+            
+            <!-- Tables rondes -->
+            <div class="table table-round table2" data-table="2" onclick="showGuests('Table 2', tableData[2])">
+                TABLE 2
+            </div>
+            
+            <div class="table table-round table3" data-table="3" onclick="showGuests('Table 3', tableData[3])">
+                TABLE 3
+            </div>
+            
+            <div class="table table-round table4" data-table="4" onclick="showGuests('Table 4', tableData[4])">
+                TABLE 4
+            </div>
+            
+            <div class="table table-round table5" data-table="5" onclick="showGuests('Table 5', tableData[5])">
+                TABLE 5
+            </div>
+            
+            <div class="table table-round table6" data-table="6" onclick="showGuests('Table 6', tableData[6])">
+                TABLE 6
+            </div>
+            
+            <div class="table table-round table7" data-table="7" onclick="showGuests('Table 7', tableData[7])">
+                TABLE 7
+            </div>
+            
+            <div class="table table-round table8" data-table="8" onclick="showGuests('Table 8', tableData[8])">
+                TABLE 8
+            </div>
+            
+            <div class="table table-round table9" data-table="9" onclick="showGuests('Table 9', tableData[9])">
+                TABLE 9
+            </div>
+            
+            <div class="table table-round table10" data-table="10" onclick="showGuests('Table 10', tableData[10])">
+                TABLE 10
+            </div>
+            
+            <div class="table table-round table11" data-table="11" onclick="showGuests('Table 11', tableData[11])">
+                TABLE 11
+            </div>
+            
+            <div class="table table-round table12" data-table="12" onclick="showGuests('Table 12', tableData[12])">
+                TABLE 12
+            </div>
+            
+            <div class="table table-kids table13" data-table="13" onclick="showGuests('Table 13 - Kids Table 👶', tableData[13])">
+                TABLE 13<br>Kids 🎈
+            </div>
+            
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-icon legend-rect"></div>
+                    Table d'honneur
+                </div>
+                <div class="legend-item">
+                    <div class="legend-icon legend-round"></div>
+                    Tables des invités
+                </div>
+                <div class="legend-item">
+                    <div class="legend-icon" style="border-radius: 50%; border-color: #ff9800; background: #ffe4b8;"></div>
+                    Table des enfants
+                </div>
+                <div style="margin-top: 10px; font-size: 0.8em; color: #7a8471;">
+                    💡 Glissez les tables pour les déplacer
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="guests-panel" id="guestsPanel">
+        <div class="guests-header">
+            <div class="guests-title" id="tableTitle">Table</div>
+            <button class="close-btn" onclick="closePanel()">&times;</button>
+        </div>
+        <div class="seat-visualization" id="seatVisualization"></div>
+        <ul class="guest-list" id="guestsList"></ul>
+    </div>
+    
+    <div class="tooltip" id="tooltip"></div>
+    
+    <script>
+        // Données des tables
+        const tableData = {
+            1: ['Selinde', 'Florent', 'Thibault', 'Baptiste', 'Laura', 'Julien', 'Celina', 'Jurre', 'Tijmen'],
+            2: ['Laurent', 'Isabelle', 'Jean-Christophe', 'Cecile', 'Simone', 'Nicole', 'Henri', 'Charles', 'Eric', 'Frederique'],
+            3: ['Chrisha', 'Pascale', 'Julian', 'Lucas', 'Jorge', 'Nick', 'Hanna', 'Nicolas', 'Iman', 'Andrea', 'Martijn'],
+            4: ['Nathalie', 'Patrick', 'Mathieu', 'Aurelie', 'Franck', 'Helene', 'Philippe', 'Valerie', 'Marie-Helene', 'Rodolphe'],
+            5: ['Nikola', 'Mike', 'Ruben', 'Karina', 'Abraham', 'Elena', 'Marta', 'Felipe'],
+            6: ['Pauline', 'Marvin', 'Soraya', 'Clement', 'Julie', 'Renje', 'Steve', 'Elianne'],
+            7: ['Estelle', 'Magalie', 'Luc', 'Jeannine', 'Carolina', 'Zulia', 'Mila', 'Saskia', 'German'],
+            8: ['Robin', 'Oyana', 'Oceane', 'Valentine', 'Antoine', 'Lucas', 'Manon', 'Camille', 'Gauthier', 'Theo', 'Tom'],
+            9: ['Anna', 'Filippo', 'Angeline', 'Nicolas', 'Yasmeen', 'Anna', 'Jaime', 'Johannes', 'Daniel', 'Julie', 'José Maria'],
+            10: ['Henrik', 'Sandra', 'Charles', 'Charles', 'Oriane', 'Alice', 'Pablo', 'Charles', 'Guillemette', 'Auguste', 'Rodrigue'],
+            11: ['Guillaume', 'Justine', 'Pierre', 'Louis', 'Ophelie', 'Camille', 'Andrea', 'Anne', 'Thomas'],
+            12: ['Lola', 'Matheo', 'Guillaume', 'Sophie', 'Carl', 'Baptiste', 'Henri', 'Paul', 'Charles', 'Juliette'],
+            13: ['Felix', 'Julie', 'Oisin', 'Rodrigue', 'Auguste', 'Ada', 'Nina']
+        };
+        
+        // Variables pour le drag & drop
+        let isDragging = false;
+        let currentTable = null;
+        let offset = { x: 0, y: 0 };
+        let currentTableNumber = null;
+        
+        // Initialiser les fonctionnalités de drag & drop
+        function initDragDrop() {
+            const tables = document.querySelectorAll('.table');
+            
+            tables.forEach(table => {
+                table.addEventListener('mousedown', startDrag);
+                table.addEventListener('dragstart', e => e.preventDefault());
+            });
+            
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', stopDrag);
+            
+            // Ajouter les places assises à chaque table
+            tables.forEach(table => {
+                addSeatsToTable(table);
+            });
+            
+            // Boutons sauvegarde et impression
+            document.getElementById('saveBtn').addEventListener('click', saveSetup);
+            document.getElementById('printBtn').addEventListener('click', () => window.print());
+            
+            // Charger si existant
+            loadSetup();
+        }
+        
+        function startDrag(e) {
+            if (e.target.classList.contains('seat')) return;
+            
+            isDragging = true;
+            currentTable = e.currentTarget;
+            currentTable.classList.add('dragging');
+            
+            const rect = currentTable.getBoundingClientRect();
+            const venueRect = document.getElementById('venueLayout').getBoundingClientRect();
+            
+            offset.x = e.clientX - rect.left;
+            offset.y = e.clientY - rect.top;
+            
+            e.preventDefault();
+        }
+        
+        function drag(e) {
+            if (!isDragging || !currentTable) return;
+            
+            const venue = document.getElementById('venueLayout');
+            const venueRect = venue.getBoundingClientRect();
+            const tableRect = currentTable.getBoundingClientRect();
+            
+            let newX = e.clientX - venueRect.left - offset.x;
+            let newY = e.clientY - venueRect.top - offset.y;
+            
+            // Contraintes pour garder la table dans la zone
+            newX = Math.max(0, Math.min(newX, venue.offsetWidth - currentTable.offsetWidth));
+            newY = Math.max(0, Math.min(newY, venue.offsetHeight - currentTable.offsetHeight));
+            
+            currentTable.style.left = newX + 'px';
+            currentTable.style.top = newY + 'px';
+            currentTable.style.transform = 'none';
+        }
+        
+        function stopDrag() {
+            if (currentTable) {
+                currentTable.classList.remove('dragging');
+                currentTable = null;
+            }
+            isDragging = false;
+        }
+        
+        function addSeatsToTable(table) {
+            const tableNum = parseInt(table.dataset.table);
+            const guests = tableData[tableNum];
+            const isRectangular = table.classList.contains('table-rectangular');
+            const isKids = table.classList.contains('table-kids');
+            
+            guests.forEach((guest, index) => {
+                const seat = document.createElement('div');
+                seat.className = `seat ${isRectangular ? 'seat-rect' : ''} ${isKids ? 'seat-kids' : ''}`;
+                seat.textContent = (index + 1).toString();
+                seat.dataset.guest = guest;
+                
+                // Position des places selon le type de table
+                if (isRectangular) {
+                    positionRectangularSeat(seat, index, guests.length);
+                } else {
+                    positionRoundSeat(seat, index, guests.length);
+                }
+                
+                seat.addEventListener('mouseenter', showTooltip);
+                seat.addEventListener('mouseleave', hideTooltip);
+                
+                table.appendChild(seat);
+            });
+        }
+        
+        function positionRoundSeat(seat, index, total) {
+            const radius = 55;
+            const angle = (2 * Math.PI * index) / total - Math.PI / 2;
+            const x = radius + radius * Math.cos(angle);
+            const y = radius + radius * Math.sin(angle);
+            
+            seat.style.left = x + 'px';
+            seat.style.top = y + 'px';
+        }
+        
+        function positionRectangularSeat(seat, index, total) {
+            const width = 200;
+            const height = 90;
+            const perimeter = 2 * (width + height);
+            const seatSpacing = perimeter / total;
+            const position = index * seatSpacing;
+            
+            let x, y;
+            
+            if (position <= width) {
+                // Côté haut
+                x = position;
+                y = -12;
+            } else if (position <= width + height) {
+                // Côté droit
+                x = width + 12;
+                y = position - width;
+            } else if (position <= 2 * width + height) {
+                // Côté bas
+                x = width - (position - width - height);
+                y = height + 12;
+            } else {
+                // Côté gauche
+                x = -12;
+                y = height - (position - 2 * width - height);
+            }
+            
+            seat.style.left = x + 'px';
+            seat.style.top = y + 'px';
+        }
+        
+        function showTooltip(e) {
+            const tooltip = document.getElementById('tooltip');
+            const guest = e.target.dataset.guest;
+            
+            tooltip.textContent = guest;
+            tooltip.style.left = e.target.offsetLeft + e.target.offsetParent.offsetLeft + 12 + 'px';
+            tooltip.style.top = e.target.offsetTop + e.target.offsetParent.offsetTop - 5 + 'px';
+            tooltip.classList.add('show');
+        }
+        
+        function hideTooltip() {
+            const tooltip = document.getElementById('tooltip');
+            tooltip.classList.remove('show');
+        }
+        
+        function showGuests(tableName, guests) {
+            if (isDragging) return;
+            
+            const panel = document.getElementById('guestsPanel');
+            const title = document.getElementById('tableTitle');
+            const list = document.getElementById('guestsList');
+            const visualization = document.getElementById('seatVisualization');
+            
+            // Extraire le numéro de table
+            currentTableNumber = parseInt(tableName.match(/\d+/)[0]);
+            
+            title.textContent = tableName;
+            list.innerHTML = '';
+            
+            // Créer la visualisation des places
+            const isRectangular = tableName.includes('Honneur');
+            const isKids = tableName.includes('Kids');
+            visualization.innerHTML = `
+                <h3 style="text-align: center; color: #7a8471; margin-bottom: 15px;">Plan des places</h3>
+                <div class="seat-diagram ${isRectangular ? 'seat-diagram-rect' : ''}" id="seatDiagram"></div>
+                <div class="reorder-info">
+                    🔼🔽 Utilisez les flèches pour changer l'ordre des places
+                </div>
+            `;
+            
+            const diagram = document.getElementById('seatDiagram');
+            
+            guests.forEach((guest, index) => {
+                const seat = document.createElement('div');
+                seat.className = `seat ${isRectangular ? 'seat-rect' : ''} ${isKids ? 'seat-kids' : ''}`;
+                seat.textContent = (index + 1).toString();
+                seat.style.position = 'absolute';
+                
+                if (isRectangular) {
+                    positionRectangularSeatDiagram(seat, index, guests.length);
+                } else {
+                    positionRoundSeatDiagram(seat, index, guests.length);
+                }
+                
+                diagram.appendChild(seat);
+                
+                // Ajouter à la liste avec boutons de contrôle et alignement amélioré
+                const li = document.createElement('li');
+                li.className = 'guest-item';
+                li.dataset.index = index;
+                
+                const guestName = document.createElement('div');
+                guestName.className = 'guest-name';
+                guestName.innerHTML = `<span class="guest-number"><strong>${index + 1}.</strong></span>${guest}`;
+                
+                const controls = document.createElement('div');
+                controls.className = 'guest-controls';
+                
+                const upBtn = document.createElement('button');
+                upBtn.className = 'move-btn';
+                upBtn.innerHTML = '▲';
+                upBtn.title = 'Monter';
+                upBtn.disabled = index === 0;
+                upBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    moveGuest(index, 'up');
+                };
+                
+                const downBtn = document.createElement('button');
+                downBtn.className = 'move-btn';
+                downBtn.innerHTML = '▼';
+                downBtn.title = 'Descendre';
+                downBtn.disabled = index === guests.length - 1;
+                downBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    moveGuest(index, 'down');
+                };
+                
+                controls.appendChild(upBtn);
+                controls.appendChild(downBtn);
+                
+                li.appendChild(guestName);
+                li.appendChild(controls);
+                
+                list.appendChild(li);
+            });
+            
+            panel.classList.add('active');
+        }
+        
+        function positionRoundSeatDiagram(seat, index, total) {
+            const radius = 75;
+            const angle = (2 * Math.PI * index) / total - Math.PI / 2;
+            const x = radius + radius * Math.cos(angle);
+            const y = radius + radius * Math.sin(angle);
+            
+            seat.style.left = x + 'px';
+            seat.style.top = y + 'px';
+        }
+        
+        function positionRectangularSeatDiagram(seat, index, total) {
+            const width = 200;
+            const height = 80;
+            const perimeter = 2 * (width + height);
+            const seatSpacing = perimeter / total;
+            const position = index * seatSpacing;
+            
+            let x, y;
+            
+            if (position <= width) {
+                x = position;
+                y = -12;
+            } else if (position <= width + height) {
+                x = width + 12;
+                y = position - width;
+            } else if (position <= 2 * width + height) {
+                x = width - (position - width - height);
+                y = height + 12;
+            } else {
+                x = -12;
+                y = height - (position - 2 * width - height);
+            }
+            
+            seat.style.left = x + 'px';
+            seat.style.top = y + 'px';
+        }
+        
+        function closePanel() {
+            const panel = document.getElementById('guestsPanel');
+            panel.classList.remove('active');
+        }
+        
+        // Fonction pour déplacer un invité (déclarée globalement)
+        function moveGuest(guestIndex, direction) {
+            const guests = tableData[currentTableNumber];
+            const newIndex = direction === 'up' ? guestIndex - 1 : guestIndex + 1;
+            
+            // Vérifier si le mouvement est valide
+            if (newIndex < 0 || newIndex >= guests.length) return;
+            
+            // Échanger les invités
+            const temp = guests[guestIndex];
+            guests[guestIndex] = guests[newIndex];
+            guests[newIndex] = temp;
+            
+            // Mettre à jour les places sur la table physique
+            updateTableSeats(currentTableNumber);
+            
+            // Rafraîchir l'affichage SANS fermer le panneau
+            const tableName = document.getElementById('tableTitle').textContent;
+            refreshGuestDisplay(tableName, guests);
+        }
+        
+        // Fonction pour rafraîchir l'affichage sans fermer le panneau
+        function refreshGuestDisplay(tableName, guests) {
+            const list = document.getElementById('guestsList');
+            const visualization = document.getElementById('seatVisualization');
+            
+            list.innerHTML = '';
+            
+            // Créer la visualisation des places
+            const isRectangular = tableName.includes('Honneur');
+            visualization.innerHTML = `
+                <h3 style="text-align: center; color: #7a8471; margin-bottom: 15px;">Plan des places</h3>
+                <div class="seat-diagram ${isRectangular ? 'seat-diagram-rect' : ''}" id="seatDiagram"></div>
+                <div class="reorder-info">
+                    🔼🔽 Utilisez les flèches pour changer l'ordre des places
+                </div>
+            `;
+            
+            const diagram = document.getElementById('seatDiagram');
+            
+            guests.forEach((guest, index) => {
+                const seat = document.createElement('div');
+                seat.className = `seat ${isRectangular ? 'seat-rect' : ''}`;
+                seat.textContent = (index + 1).toString();
+                seat.style.position = 'absolute';
+                
+                if (isRectangular) {
+                    positionRectangularSeatDiagram(seat, index, guests.length);
+                } else {
+                    positionRoundSeatDiagram(seat, index, guests.length);
+                }
+                
+                diagram.appendChild(seat);
+                
+                // Ajouter à la liste avec boutons de contrôle et alignement amélioré
+                const li = document.createElement('li');
+                li.className = 'guest-item';
+                li.dataset.index = index;
+                
+                const guestName = document.createElement('div');
+                guestName.className = 'guest-name';
+                guestName.innerHTML = `<span class="guest-number"><strong>${index + 1}.</strong></span>${guest}`;
+                
+                const controls = document.createElement('div');
+                controls.className = 'guest-controls';
+                
+                const upBtn = document.createElement('button');
+                upBtn.className = 'move-btn';
+                upBtn.innerHTML = '▲';
+                upBtn.title = 'Monter';
+                upBtn.disabled = index === 0;
+                upBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    moveGuest(index, 'up');
+                };
+                
+                const downBtn = document.createElement('button');
+                downBtn.className = 'move-btn';
+                downBtn.innerHTML = '▼';
+                downBtn.title = 'Descendre';
+                downBtn.disabled = index === guests.length - 1;
+                downBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    moveGuest(index, 'down');
+                };
+                
+                controls.appendChild(upBtn);
+                controls.appendChild(downBtn);
+                
+                li.appendChild(guestName);
+                li.appendChild(controls);
+                
+                list.appendChild(li);
+            });
+        }
+        
+        // Rendre la fonction accessible globalement
+        window.moveGuest = moveGuest;
+        
+        function updateTableSeats(tableNumber) {
+            const table = document.querySelector(`[data-table="${tableNumber}"]`);
+            const seats = table.querySelectorAll('.seat');
+            const guests = tableData[tableNumber];
+            
+            seats.forEach((seat, index) => {
+                if (guests[index]) {
+                    seat.dataset.guest = guests[index];
+                }
+            });
+        }
+        
+        // Sauvegarde de la configuration dans localStorage
+        function saveSetup() {
+            const tables = document.querySelectorAll('.table');
+            const saveData = { positions: {}, data: tableData };
+            tables.forEach(t => {
+                saveData.positions[t.dataset.table] = { left: t.style.left, top: t.style.top };
+            });
+            localStorage.setItem('tableSetup', JSON.stringify(saveData));
+            alert('Configuration sauvegardée !');
+        }
+        
+        function loadSetup() {
+            const saved = localStorage.getItem('tableSetup');
+            if (!saved) return;
+            try {
+                const saveData = JSON.parse(saved);
+                // recharger positions
+                Object.keys(saveData.positions).forEach(num => {
+                    const table = document.querySelector(`[data-table="${num}"]`);
+                    const pos = saveData.positions[num];
+                    if (table && pos) {
+                        table.style.left = pos.left;
+                        table.style.top = pos.top;
+                        table.style.transform = 'none';
+                    }
+                });
+                // recharger données des invités
+                Object.keys(saveData.data).forEach(num => {
+                    if (tableData[num]) tableData[num] = saveData.data[num];
+                });
+                // mettre à jour les sièges
+                Object.keys(tableData).forEach(num => updateTableSeats(num));
+            } catch(e) {
+                console.error('Erreur chargement config', e);
+            }
+        }
+        
+        // Initialiser au chargement
+        document.addEventListener('DOMContentLoaded', initDragDrop);
+        
+        // Fermer le panneau en cliquant en dehors
+        document.addEventListener('click', function(event) {
+            const panel = document.getElementById('guestsPanel');
+            const tables = document.querySelectorAll('.table');
+            
+            if (!panel.contains(event.target) && !Array.from(tables).some(table => table.contains(event.target))) {
+                panel.classList.remove('active');
+            }
+        });
+    </script>
+</body>
+</html>
